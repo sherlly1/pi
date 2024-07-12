@@ -99,8 +99,9 @@ button {
             </div>
             <br><br>
             <input type="submit" value="Login" style="background-color: #f44336; color: white; width: 100px;">
-            <button type="button" onclick="window.history.back();" style="background-color: #f44336; color: white;">Kembali</button>
+            <p>Belum punya akun? <a href="register.php">Daftar disini</a></p>
         </form>
+        
     </div>
 
     <script>

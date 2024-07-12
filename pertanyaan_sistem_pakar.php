@@ -13,14 +13,15 @@
             text-align: center;
             margin: 0;
             padding: 0;
-            height: 100vh;
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
         }
         .container {
-            max-width: 600px;
-            margin: 50px auto;
+            max-width: 800px;
+            width: 100%;
+            margin: 20px;
             background-color: #fff;
             padding: 20px;
             border-radius: 8px;
@@ -28,14 +29,23 @@
         }
         h2 {
             color: #333;
+            margin-bottom: 20px;
         }
         .question {
             text-align: left;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
+        }
+        .question p {
+            margin: 0;
         }
         .answer {
-            display: block;
-            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            margin-top: 5px;
+        }
+        .answer label {
+            margin-left: 10px;
+            margin-right: 20px;
         }
         .btn {
             background-color: #007bff;
@@ -56,6 +66,15 @@
         <h2>Pertanyaan Sistem Pakar</h2>
         
         <form action="proses_jawaban.php" method="POST">
+            <div class="question">
+                <label for="nama">Nama:</label>
+                <input type="text" id="nama" name="nama" required>
+            </div>
+            <div class="question">
+                <label for="umur">Umur:</label>
+                <input type="number" id="umur" name="umur" required>
+            </div>
+            
             <?php
             // Koneksi ke database
             $conn = new mysqli('localhost', 'root', '', 'kecanduan_game');
@@ -65,25 +84,27 @@
                 die("Koneksi Gagal: " . $conn->connect_error);
             }
 
-            // Query untuk mengambil pertanyaan
-            $sql = "SELECT * FROM pertanyaan";
+            // Query untuk mengambil gejala
+            $sql = "SELECT * FROM gejala";
             $result = $conn->query($sql);
 
             if ($result->num_rows > 0) {
                 while ($row = $result->fetch_assoc()) {
                     ?>
                     <div class="question">
-                        <p><?php echo $row['teks_pertanyaan']; ?></p>
-                        <input type="hidden" name="id_pertanyaan[]" value="<?php echo $row['id']; ?>">
-                        <input type="radio" id="jawaban-ya-<?php echo $row['id']; ?>" name="jawaban_<?php echo $row['id']; ?>" value="ya" required>
-                        <label for="jawaban-ya-<?php echo $row['id']; ?>">Ya</label>
-                        <input type="radio" id="jawaban-tidak-<?php echo $row['id']; ?>" name="jawaban_<?php echo $row['id']; ?>" value="tidak">
-                        <label for="jawaban-tidak-<?php echo $row['id']; ?>">Tidak</label>
+                        <p><?php echo $row['teks_gejala']; ?></p>
+                        <div class="answer">
+                            <input type="hidden" name="id_gejala[]" value="<?php echo $row['id']; ?>">
+                            <input type="radio" id="jawaban-ya-<?php echo $row['id']; ?>" name="jawaban_<?php echo $row['id']; ?>" value="ya" required>
+                            <label for="jawaban-ya-<?php echo $row['id']; ?>">Ya</label>
+                            <input type="radio" id="jawaban-tidak-<?php echo $row['id']; ?>" name="jawaban_<?php echo $row['id']; ?>" value="tidak">
+                            <label for="jawaban-tidak-<?php echo $row['id']; ?>">Tidak</label>
+                        </div>
                     </div>
                     <?php
                 }
             } else {
-                echo "Belum ada pertanyaan yang ditambahkan.";
+                echo "Belum ada gejala yang ditambahkan.";
             }
 
             $conn->close();

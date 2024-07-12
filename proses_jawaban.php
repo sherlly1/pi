@@ -1,153 +1,147 @@
+<?php
+session_start();
+
+// Koneksi ke database
+$conn = new mysqli('localhost', 'root', '', 'kecanduan_game');
+
+// Check koneksi
+if ($conn->connect_error) {
+    die("Koneksi Gagal: " . $conn->connect_error);
+}
+
+// Ambil nilai nama dan umur dari POST
+$nama = $_POST['nama'];
+$umur = $_POST['umur'];
+
+$id_gejala = $_POST['id_gejala'];
+$total_mb = 0;
+$total_md = 0;
+
+foreach ($id_gejala as $id) {
+    $jawaban = $_POST['jawaban_' . $id];
+    
+    // Ambil nilai MB dan MD dari database
+    $sql = "SELECT mb, md FROM gejala WHERE id = $id";
+    $result = $conn->query($sql);
+    $row = $result->fetch_assoc();
+    $mb = $row['mb'];
+    $md = $row['md'];
+
+    // Hitung total MB dan MD
+    if ($jawaban == 'ya') {
+        $total_mb += $mb;
+        $total_md += $md;
+    } else {
+        $total_mb += $md;
+        $total_md += $mb;
+    }
+}
+
+// Hitung nilai CF
+if ($total_md != 0) {
+    $cf = ($total_mb - $total_md) / ($total_mb + $total_md);
+} else {
+    $cf = 0; // menghindari pembagian dengan nol
+}
+
+// Konversi CF ke persentase
+$persentase_cf = abs($cf) * 100;
+
+// Tentukan tingkat kecanduan berdasarkan persentase CF
+if ($persentase_cf >= 70) {
+    $tingkat = 'Tinggi';
+} elseif ($persentase_cf >= 40 && $persentase_cf < 70) {
+    $tingkat = 'Sedang';
+} else {
+    $tingkat = 'Rendah';
+}
+
+// Ambil solusi dari tabel tingkat_kecanduan sesuai dengan tingkat kecanduan
+$sql_solusi = "SELECT keterangan FROM tingkat_kecanduan WHERE level = '$tingkat'";
+$result_solusi = $conn->query($sql_solusi);
+
+if ($result_solusi->num_rows > 0) {
+    $row_solusi = $result_solusi->fetch_assoc();
+    $solusi = $row_solusi['keterangan'];
+} else {
+    $solusi = "Data solusi tidak tersedia untuk tingkat kecanduan $tingkat";
+}
+
+// Simpan hasil analisis ke database
+$sql_simpan = "INSERT INTO hasil_analisis (nama, umur, cf_value, persentase_cf, tingkat_kecanduan, solusi)
+               VALUES ('$nama', '$umur', '$cf', '$persentase_cf', '$tingkat', '$solusi')";
+
+if ($conn->query($sql_simpan) === TRUE) {
+    echo "Hasil analisis berhasil disimpan ke database.";
+} else {
+    echo "Error: " . $sql_simpan . "<br>" . $conn->error;
+}
+
+$conn->close();
+?>
+
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Hasil Diagnosa</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hasil Analisis Kecanduan Game</title>
     <link rel="icon" type="image/png" href="logo.jpg">
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            background-image: url('logo.jpg');
+            background-image: url('background.jpg'); /* Pastikan Anda memiliki file background.jpg di folder yang sama */
             background-size: cover;
             background-position: center;
             text-align: center;
-            margin: 0;
-            padding: 0;
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            padding-top: 50px;
+            color: #333;
         }
         .container {
             max-width: 600px;
-            margin: 50px auto;
-            background-color: #fff;
+            margin: 0 auto;
+            background-color: rgba(255, 255, 255, 0.9);
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
         h2 {
             color: #333;
-            margin-bottom: 20px;
         }
         .result {
+            margin-top: 20px;
             text-align: left;
-            margin-top: 20px;
-        }
-        .result p {
-            margin: 10px 0;
-        }
-        .result .catatan {
-            margin-top: 20px;
-            background-color: #f9f9f9;
-            padding: 10px;
-            border-radius: 4px;
-        }
-        .result .catatan p {
-            margin: 5px 0;
         }
         .btn {
-            background-color: #007bff;
-            color: white;
+            display: inline-block;
             padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
+            margin-top: 20px;
+            font-size: 16px;
+            color: #ffffff;
+            background-color: #f44336;
+            text-decoration: none;
+            border-radius: 5px;
             transition: background-color 0.3s ease;
         }
         .btn:hover {
-            background-color: #0056b3;
+            background-color: #d32f2f;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>Hasil Diagnosa</h2>
+        <h2>Hasil Analisis Kecanduan Game</h2>
+        
         <div class="result">
-            <?php
-            // Koneksi ke database
-            $conn = new mysqli('localhost', 'root', '', 'kecanduan_game');
-
-            // Check koneksi
-            if ($conn->connect_error) {
-                die("Koneksi Gagal: " . $conn->connect_error);
-            }
-
-            // Inisialisasi total CF dan jumlah aturan yang terpenuhi
-            $total_cf = 0;
-            $jumlah_aturan = 0;
-            $catatan_terkumpul = [];
-
-            // Loop untuk menghitung CF dari setiap pertanyaan yang dikirimkan melalui form
-            foreach ($_POST['id_pertanyaan'] as $id_pertanyaan) {
-                // Ambil jawaban dari $_POST, pastikan aman dengan real_escape_string
-                $jawaban = $conn->real_escape_string($_POST['jawaban_' . $id_pertanyaan]);
-                
-                // Query untuk mendapatkan CF dari aturan yang sesuai dengan id_pertanyaan dan jawaban
-                $sql = "SELECT cf, catatan FROM aturan_cf WHERE id_pertanyaan = $id_pertanyaan AND jawaban = '$jawaban'";
-                $result = $conn->query($sql);
-
-                // Jika query mengembalikan hasil, tambahkan nilai CF ke total_cf
-                if ($result->num_rows > 0) {
-                    $row = $result->fetch_assoc();
-                    $cf = floatval($row['cf']);
-                    $catatan = $row['catatan'];
-                    $total_cf += $cf;
-                    $jumlah_aturan++;
-                    if (!empty($catatan)) {
-                        $catatan_terkumpul[] = $catatan;
-                    }
-                }
-            }
-
-            // Hitung persentase hasil diagnosa jika ada aturan yang terpenuhi
-            if ($jumlah_aturan > 0) {
-                $persentase = ($total_cf / $jumlah_aturan) * 100;
-                $persentase = round($persentase, 2); // Pembulatan dua angka desimal
-                
-                echo "<p><strong>Hasil diagnosa:</strong> " . $persentase . "%</p>";
-
-                // Tentukan threshold untuk menampilkan solusi
-                $threshold = 30; // Misalnya, threshold adalah 30%
-
-                // Menentukan tingkat kecanduan
-                $tingkat_kecanduan = "";
-                if ($persentase >= 75) {
-                    $tingkat_kecanduan = "Sangat Tinggi";
-                } elseif ($persentase >= 50) {
-                    $tingkat_kecanduan = "Tinggi";
-                } elseif ($persentase >= 25) {
-                    $tingkat_kecanduan = "Sedang";
-                } else {
-                    $tingkat_kecanduan = "Rendah";
-                }
-
-                echo "<p><strong>Tingkat kecanduan:</strong> " . $tingkat_kecanduan . "</p>";
-
-                // Jika persentase hasil diagnosa mencapai atau melebihi threshold
-                if ($persentase >= $threshold) {
-                    // Menampilkan rekomendasi
-                    echo "<p><strong>Rekomendasi:</strong> Disarankan untuk segera mencari bantuan profesional seperti konseling atau terapi untuk mengatasi kecanduan game online. Pengaturan waktu bermain dan pembatasan akses ke game online juga dapat membantu dalam jangka pendek.</p>";
-                } else {
-                    echo "<p>Hasil diagnosa tidak mencapai threshold untuk memberikan solusi.</p>";
-                }
-
-                // Tampilkan catatan jika ada
-                if (!empty($catatan_terkumpul)) {
-                    echo "<div class='catatan'><strong>Catatan:</strong><br>";
-                    foreach ($catatan_terkumpul as $catatan) {
-                        echo "<p>- " . $catatan . "</p>";
-                    }
-                    echo "</div>";
-                }
-            } else {
-                echo "<p>Tidak ada data yang sesuai untuk menghitung hasil diagnosa.</p>";
-            }
-
-            // Tutup koneksi database setelah selesai menggunakan
-            $conn->close();
-            ?>
+            <p>Nama: <?php echo htmlspecialchars($nama); ?></p>
+            <p>Umur: <?php echo htmlspecialchars($umur); ?></p>
+            <p>Nilai Certainty Factor total: <?php echo round($cf, 2); ?></p>
+            <p>Persentase: <?php echo round($persentase_cf, 2); ?>%</p>
+            <p>Tingkat Kecanduan: <?php echo $tingkat; ?></p>
+            <p>Solusi: <?php echo $solusi; ?></p>
         </div>
+
+        <a href="index.php" class="btn">Kembali ke Beranda</a>
     </div>
 </body>
 </html>
